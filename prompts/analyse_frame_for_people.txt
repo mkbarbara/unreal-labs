@@ -1,0 +1,27 @@
+Analyze this image and identify all people visible.
+
+For each person, provide:
+1. A unique temporary ID (e.g., "person_1", "person_2")
+2. Gender: male / female / unknown
+3. Approximate age group: child / young_adult / adult / elderly
+4. Skin tone: very_light / light / medium / tan / brown / dark
+5. Hair: detailed description including color, length, texture, style
+6. Clothing: detailed description including colors, style, type
+7. Position in frame: left / center / right / background
+8. Body visibility: full_body / upper_body / partial / face_only
+
+Return ONLY raw valid JSON with no code fences, no markdown, no explanations in this exact format:
+{{
+  "people": [
+    {{
+      "person_id": "person_1",
+      "gender": "female",
+      "age": "adult",
+      "skin": "medium",
+      "hair": "consolidated hair description",
+      "clothing": "consolidated clothing description",
+    }}
+  ],
+}}
+
+If no people are visible, return: {{"people": []}}

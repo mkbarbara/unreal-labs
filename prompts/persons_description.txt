@@ -1,0 +1,23 @@
+You are analyzing a video and need to identify unique individuals across multiple frames.
+
+Here is the detection data from sampled frames:
+{frame_analyses}
+
+Your task:
+1. Identify unique individuals that appear across frames (the same person may have different temp_ids in different frames)
+2. For each unique person, create a consolidated profile with their most consistent attributes
+3. Assign each person a consistent ID (person_1, person_2, etc.)
+
+Return ONLY raw valid JSON with no code fences, no markdown, no explanations in this exact format:
+{{
+  "people": [
+    {{
+      "person_id": "person_1",
+      "gender": "female",
+      "age": "adult",
+      "skin": "medium",
+      "hair": "consolidated hair description",
+      "clothing": "consolidated clothing description",
+    }}
+  ]
+}}

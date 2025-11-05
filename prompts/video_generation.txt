@@ -1,0 +1,14 @@
+Generate a video segment that smoothly transitions from the first frame to the last frame.
+
+Requirements:
+- Maintain consistent identity of all subjects throughout the entire clip
+- Preserve natural motion and body language
+- Keep camera movement and perspective consistent with the original clip
+- Maintain all lighting conditions and atmosphere
+- Ensure temporal consistency - the same person must look identical across all frames
+- Preserve all text overlays without modification
+- Keep background elements and scene composition stable
+- Natural, realistic motion that matches typical UGC/lifestyle video style
+- Smooth, professional quality output suitable for marketing
+
+The video must look like a natural, continuous clip with the transformed subject(s).

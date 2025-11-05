@@ -1,0 +1,10 @@
+Full body photo of a person standing in a neutral pose, clear visible full height from head to toe,
+centered in frame, professional photography, high-quality, detailed features. The subject has a neutral,
+relaxed expression and is making direct, calm eye contact with the camera (no smile, no frown).
+
+Person description: {description}.
+Wearing: {clothing}.
+Lighting: soft natural daylight, evenly diffused, no harsh shadows.
+Background: clean light gray studio backdrop, plain and uncluttered.
+
+Neutral background, even lighting, photorealistic style.

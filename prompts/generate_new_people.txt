@@ -1,0 +1,36 @@
+You are tasked with generating new person descriptions based on a transformation theme.
+
+Original people count: {num_people}
+Transformation theme: {transformation_theme}
+
+Original people detected in video:
+{original_people}
+
+Your task:
+1. Analyze the transformation theme to understand what type of people should be generated
+2. Generate exactly {num_people} NEW person descriptions that match the transformation theme
+3. Consider the context:
+   - If theme mentions "couple", generate appropriate genders (e.g., man and woman, or as specified)
+   - If theme mentions specific demographic (e.g., "Black people", "Asian people"), ensure all generated people match
+   - If theme mentions an age group (e.g., "elderly", "young"), ensure all generated people match
+4. Each person should have: gender, age, skin, hair, clothing
+5. Make descriptions diverse and realistic within the theme constraints
+
+Return ONLY raw valid JSON with no code fences, no markdown, no explanations in this exact format:
+{{
+  "people": [
+    {{
+      "person_id": "person_1",
+      "gender": "male or female",
+      "age": "child, teenager, young_adult, adult, middle_aged, or elderly",
+      "skin": "very light, light, medium, tan, brown, or deep",
+      "hair": "detailed hair description including color, length, and style",
+      "clothing": "detailed clothing description"
+    }}
+  ]
+}}
+
+Examples:
+- Theme "Black people couple" with 2 original people → Generate 1 Black woman + 1 Black man
+- Theme "Asian elderly people" with 3 original people → Generate 3 Asian elderly people (mixed genders)
+- Theme "Young Black professionals" with 2 original people → Generate 2 young Black adults in professional attire
