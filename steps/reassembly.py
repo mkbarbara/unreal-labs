@@ -1,4 +1,4 @@
-"""Step 5: Reassemble video clips into final output"""
+"""Step 7: Reassemble video clips into final output"""
 
 from pathlib import Path
 from typing import List

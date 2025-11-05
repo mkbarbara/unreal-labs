@@ -1,10 +1,12 @@
 import base64
 import json
 import os
+from pathlib import Path
 from typing import List, Dict, Optional
 from openai import AsyncOpenAI
 from utils.logger import setup_logger
 from utils.config import Config
+from schemas import Person
 
 logger = setup_logger(__name__)
 
@@ -41,32 +43,27 @@ class OpenAIWorker:
 
     async def analyze_frame_for_people(
         self,
-        image_path: str,
-        frame_number: int,
+        image_path: Path,
         config: Config,
-    ) -> Dict:
+    ) -> List[Person]:
         """
         Analyze a frame to detect and describe people
 
         Args:
             image_path: Path to the frame image
-            frame_number: Frame index in the video
             config: Pipeline configuration
 
         Returns:
-            Dict with detected people and their descriptions
+            A list of Person objects describing detected individuals.
         """
-        logger.info(f"Analyzing frame {frame_number} for people detection")
-
         try:
             # Encode image to base64
             with open(image_path, "rb") as image_file:
                 image_data = base64.b64encode(image_file.read()).decode('utf-8')
 
-            prompt_template = config.get_prompt("analyse_frame_for_people")
-            prompt = prompt_template.format(frame_number=frame_number)
+            prompt = config.get_prompt("analyse_frame_for_people")
 
-            response = await self.client.chat.completions.create(
+            response = await self.client.beta.chat.completions.parse(
                 model="gpt-4o",
                 messages=[
                     {
@@ -76,7 +73,7 @@ class OpenAIWorker:
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_data}"
+                                    "url": f"data:image/png;base64,{image_data}"
                                 }
                             }
                         ]
@@ -85,25 +82,39 @@ class OpenAIWorker:
                 max_tokens=1000,
                 temperature=0.3
             )
+            raw_content = response.choices[0].message.content
+            logger.info(f"Response: {raw_content}")
 
-            result = json.loads(response.choices[0].message.content)
-            logger.info(f"Detected {len(result['people'])} people in frame {frame_number}")
+            # Remove Markdown code fences if they exist
+            if raw_content.startswith("```"):
+                raw_content = raw_content.strip().lstrip("`")
+                if raw_content.startswith("json"):
+                    raw_content = raw_content[len("json"):].lstrip()
 
-            return result
+                if raw_content.endswith("```"):
+                    raw_content = raw_content[: -3].strip()
+
+            result = json.loads(raw_content)
+            logger.info(f"Detected {len(result["people"])} people in the frame.")
+
+            people = [Person(**p) for p in result["people"]]
+            return people
 
         except Exception as e:
-            logger.error(f"Failed to analyze frame {frame_number}: {str(e)}")
-            return {"people": [], "frame_number": frame_number}
+            logger.error(f"Failed to analyze frame: {str(e)}")
+            return []
 
     async def consolidate_person_descriptions(
         self,
-        frame_analyses: List[Dict]
-    ) -> List[Dict]:
+        frame_analyses: List[Dict],
+        config: Config,
+    ) -> List[Person]:
         """
         Consolidate person descriptions across frames to create consistent identities
 
         Args:
             frame_analyses: List of frame analysis results
+            config: Pipeline configuration
 
         Returns:
             List of consolidated person profiles
@@ -111,88 +122,121 @@ class OpenAIWorker:
         logger.info("Consolidating person descriptions across frames")
 
         try:
-            prompt = f"""You are analyzing a video and need to identify unique individuals across multiple frames.
+            prompt_template = config.get_prompt("persons_description")
+            prompt = prompt_template.format(frame_analyses=frame_analyses)
 
-Here is the detection data from {len(frame_analyses)} sampled frames:
-
-{frame_analyses}
-
-Your task:
-1. Identify unique individuals that appear across frames (same person may have different temp_ids in different frames)
-2. For each unique person, create a consolidated profile with their most consistent attributes
-3. Assign each person a consistent ID (person_1, person_2, etc.)
-
-Respond with valid JSON in this format:
-{{
-  "people": [
-    {{
-      "person_id": "person_1",
-      "gender": "female",
-      "age_group": "adult",
-      "skin_tone": "medium",
-      "hair": "consolidated hair description",
-      "typical_clothing": "consolidated clothing description",
-      "appearances": [1, 3, 5, 7]  // frame numbers where this person appears
-    }}
-  ]
-}}"""
-
-            response = await self.client.chat.completions.create(
+            response = await self.client.beta.chat.completions.parse(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
                 temperature=0.3
             )
 
-            import json
-            result = json.loads(response.choices[0].message.content)
+            raw_content = response.choices[0].message.content
+
+            # Remove Markdown code fences if they exist
+            if raw_content.startswith("```"):
+                raw_content = raw_content.strip().lstrip("`")
+                if raw_content.startswith("json"):
+                    raw_content = raw_content[len("json"):].lstrip()
+
+                if raw_content.endswith("```"):
+                    raw_content = raw_content[: -3].strip()
+
+            result = json.loads(raw_content)
             logger.info(f"Consolidated into {len(result['people'])} unique individuals")
 
-            return result["people"]
+            people = [Person(**p) for p in result["people"]]
+            return people
 
         except Exception as e:
             logger.error(f"Failed to consolidate person descriptions: {str(e)}")
             raise
 
+    async def generate_new_people_descriptions(
+        self,
+        original_person_registry: List[Person],
+        transformation_theme: str,
+        config: Config,
+    ) -> List[Person]:
+        """
+        Generate new person descriptions based on the transformation theme
+
+        Args:
+            original_person_registry: List of original people detected in video
+            transformation_theme: Transformation theme (e.g., "Black people", "Asian couple")
+            config: Pipeline configuration
+
+        Returns:
+            List of new person descriptions matching the theme
+        """
+        logger.info(f"Generating new people descriptions for theme: {transformation_theme}")
+
+        try:
+            prompt_template = config.get_prompt("generate_new_people")
+            prompt = prompt_template.format(
+                num_people=len(original_person_registry),
+                transformation_theme=transformation_theme,
+                original_people = json.dumps([p.model_dump() for p in original_person_registry], indent=2)
+            )
+
+            response = await self.client.beta.chat.completions.parse(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2000,
+                temperature=0.7
+            )
+
+            raw_content = response.choices[0].message.content
+
+            # Remove Markdown code fences if they exist
+            if raw_content.startswith("```"):
+                raw_content = raw_content.strip().lstrip("`")
+                if raw_content.startswith("json"):
+                    raw_content = raw_content[len("json"):].lstrip()
+
+                if raw_content.endswith("```"):
+                    raw_content = raw_content[: -3].strip()
+
+            result = json.loads(raw_content)
+            new_people: List = result.get("people", [])
+
+            logger.info(f"Generated {len(new_people)} new person descriptions")
+            people = [Person(**p) for p in new_people]
+            return people
+
+        except Exception as e:
+            logger.error(f"Failed to generate new people descriptions: {str(e)}")
+            raise
+
     async def generate_transformation_prompt(
-            self,
-            people_in_frame: List[Dict],
-            transformation_theme: str,
-            person_registry: List[Dict]
+        self,
+        people_in_frame: List[Person],
+        new_people_in_frame: List[Person],
+        config: Config,
     ) -> str:
         """
         Generate transformation prompt for a specific frame
 
         Args:
             people_in_frame: List of people detected in this specific frame
-            transformation_theme: Overall transformation theme (e.g., "Black people")
-            person_registry: Complete registry of all people in the video
+            new_people_in_frame: List of new people to be placed in this specific frame
+            config: Pipeline configuration
 
         Returns:
             Transformation prompt for the image editing model
         """
         try:
-            prompt = f"""Generate a detailed transformation prompt for an image editing AI model.
-
-Context:
-- Transformation theme: "{transformation_theme}"
-- People in video: {len(person_registry)} unique individuals
-- People visible in THIS frame: {len(people_in_frame)}
-
-People registry (all individuals in video):
-{person_registry}
-
-People visible in THIS specific frame:
-{people_in_frame if people_in_frame else "No people visible in this frame"}
-
-Requirements:
-1. If people ARE visible: Transform each person according to the theme while maintaining their clothing, pose, and other attributes
-2. If NO people are visible: Return a prompt that preserves the scene as-is
-3. Always maintain scene composition, lighting, background, and any text overlays
-4. Be specific about each person's transformation based on their original attributes
-
-Generate a single, detailed prompt suitable for an img2img model.
-Respond with ONLY the prompt text, no JSON or extra formatting."""
+            prompt_template = config.get_prompt("image_transformation")
+            prompt = prompt_template.format(
+                people_in_frame=json.dumps(
+                    [person.model_dump(mode='json') for person in people_in_frame], indent=2
+                ) if people_in_frame else "No people visible in this frame",
+                # TODO: fix reference people may be empty
+                reference_people=json.dumps(
+                    [new_person.model_dump(mode='json') for new_person in new_people_in_frame], indent=2
+                ),
+            )
 
             response = await self.client.chat.completions.create(
                 model="gpt-4o",
@@ -201,7 +245,7 @@ Respond with ONLY the prompt text, no JSON or extra formatting."""
                 temperature=0.7
             )
 
-            generated_prompt = response.choices[0].message.content.strip()
+            generated_prompt = response.choices[0].message.content
             logger.info(f"Generated transformation prompt: {generated_prompt[:100]}...")
 
             return generated_prompt

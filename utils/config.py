@@ -15,14 +15,12 @@ class Config:
     img2img_model: str = "fal-ai/nano-banana/edit"
     video_model: str = "fal-ai/veo3.1/first-last-frame-to-video"
 
-    # Person detection settings
-    person_detection_frame_interval: float = 2.0
-
     # Video segmentation settings
     max_clip_duration: float = 8.0
     scene_threshold: float = 0.3  # For scene detection
 
     # Frame extraction settings
+    frame_interval: int = 8
     frame_format: str = "jpg"
     frame_quality: int = 95
 

@@ -1,13 +1,15 @@
 import asyncio
 from pathlib import Path
 
+from steps.split_video import split_video_into_intervals
+from steps.text_removal import remove_text_from_intervals
 from steps.person_detection import detect_and_describe_people
-from steps.shot_segmentation import segment_video
-from steps.frame_extraction import extract_conditioning_frames
+from steps.reference_generation import generate_reference_images
 from steps.frame_editing import edit_frames
 from steps.video_generation import generate_video_clips
 from steps.reassembly import reassemble_video
 from utils.config import Config
+from utils.cache_manager import CacheManager
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -20,6 +22,7 @@ class VideoLocalizationPipeline:
         self.config = config
         self.work_dir = Path(config.work_dir)
         self.work_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_manager = CacheManager(self.work_dir / "cache")
 
     async def run(
         self,
@@ -43,55 +46,65 @@ class VideoLocalizationPipeline:
         logger.info(f"Transformation theme: {transformation_theme}")
 
         try:
-            # Step 0: Detect and describe people in the video
-            logger.info("Step 0: Detecting and describing people in video")
-            person_registry = await detect_and_describe_people(
+            # Step 1: Splits video into fixed intervals
+            video_intervals = await split_video_into_intervals(
                 input_video_path,
-                work_dir=self.work_dir / "person_detection",
-                config=self.config
+                work_dir=self.work_dir / "extracted_frames",
+                interval=self.config.frame_interval,
+                cache_manager=self.cache_manager,
             )
-            logger.info(f"Detected {len(person_registry)} unique individuals")
+            logger.info(f"Extracted {len(video_intervals)} video intervals")
 
-            # Step 1: Segment video into clips
-            logger.info("Step 1: Segmenting video into clips")
-            clips = await segment_video(
-                input_video_path,
-                work_dir=self.work_dir / "clips",
-                config=self.config
+            # Step 2: Remove text from all extracted frames in video intervals for better performance
+            cleaned_video_intervals = await remove_text_from_intervals(
+                video_intervals,
+                work_dir=self.work_dir / "cleaned_frames",
+                config=self.config,
+                input_video_path=input_video_path,
+                cache_manager=self.cache_manager,
             )
-            logger.info(f"Segmented into {len(clips)} clips")
+            logger.info(f"Cleaned {len(cleaned_video_intervals)} video intervals")
 
-            # Step 2: Extract conditioning frames
-            logger.info("Step 2: Extracting conditioning frames")
-            conditioning_frames = await extract_conditioning_frames(
-                clips,
-                work_dir=self.work_dir / "frames",
-                config=self.config
+            # Step 3: Detect and describe people using cleaned frames
+            original_person_registry = await detect_and_describe_people(
+                cleaned_video_intervals,
+                config=self.config,
+                input_video_path=input_video_path,
+                cache_manager=self.cache_manager,
             )
-            logger.info(f"Extracted frames for {len(conditioning_frames)} clips")
+            logger.info(f"Person registry: {original_person_registry}")
 
-            # Step 3: Edit demographic attributes with dynamic prompts
-            logger.info("Step 3: Editing demographic attributes on frames")
-            edited_frames = await edit_frames(
-                conditioning_frames,
-                person_registry,
+            # Step 4: Generate reference images of new people based on the transformation theme
+            new_person_registry = await generate_reference_images(
+                original_person_registry,
                 transformation_theme,
+                work_dir=self.work_dir / "reference_images",
+                config=self.config,
+                input_video_path=input_video_path,
+                cache_manager=self.cache_manager,
+            )
+            logger.info(f"Person registry: {new_person_registry}")
+
+            # Step 5: Edit cleaned video intervals with reference images
+            edited_intervals = await edit_frames(
+                cleaned_video_intervals,
+                new_person_registry,
                 work_dir=self.work_dir / "edited_frames",
                 config=self.config
             )
-            logger.info(f"Edited frames for {len(edited_frames)} clips")
+            logger.info(f"Edited {len(edited_intervals)} intervals")
 
-            # Step 4: Generate video clips
-            logger.info("Step 4: Generating video clips with Veo3.1")
+            # Step 6: Generate video clips
+            logger.info("Step 6: Generating video clips with Veo3.1")
             generated_clips = await generate_video_clips(
-                edited_frames,
+                edited_intervals,
                 work_dir=self.work_dir / "videos",
                 config=self.config
             )
             logger.info(f"Generated {len(generated_clips)} video clips")
 
-            # Step 5: Reassemble the final video
-            logger.info("Step 5: Reassembling final video")
+            # Step 7: Reassemble the final video
+            logger.info("Step 7: Reassembling final video")
             final_video = await reassemble_video(
                 generated_clips,
                 output_path,
