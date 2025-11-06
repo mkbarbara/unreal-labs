@@ -136,7 +136,6 @@ async def generate_video_intervals(
                 logger.info(f"No audio available for interval {interval_index}")
                 generated_intervals.append(str(final_output_path))
 
-            generated_intervals.append(generated_path)
             logger.info(f"Generated interval {interval_index}")
 
         except Exception as e:

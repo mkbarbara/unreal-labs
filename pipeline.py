@@ -98,7 +98,9 @@ class VideoLocalizationPipeline:
                 cleaned_video_intervals,
                 new_person_registry,
                 work_dir=self.work_dir / "edited_frames",
-                config=self.config
+                config=self.config,
+                input_video_path=input_video_path,
+                cache_manager=self.cache_manager,
             )
             logger.info(f"Edited {len(edited_intervals)} intervals")
 
