@@ -20,42 +20,39 @@ Generate a new version of that same video where:
 * We need to solve identity control, motion consistency, foreground/background separation, and reintegration of the unchanged text layer, all in an automated pipeline.
 
 # Solution
-### Step 0. Prepare reference images
-Before touching the clip, you generate a “character sheet” for the target demographic. <br>
-One or several still portraits of the replacement actor are generated with very explicit constraints:
-“Generate a Black woman in her early 30s with warm brown skin tone, natural curly hair around shoulder`s length, light makeup, wearing a beige casual jacket similar in silhouette to the original subject’s jacket. Neutral expression, front view.”
-“Generate the same woman, same face, same hair, slight smile, 3/4 angle, consistent lighting.”
-We save these portraits and treat them as the ground truth identity for that localized version. Think of this as the casting decision for that region.
+### Step 0. Extract text layers from video
+Extract the static text overlay from the original video to preserve it pixel-perfectly for later reintegration.
+**Output:** text_rgba.png (transparent PNG with text layer)
 
-Why this matters:
-This gives us a stable visual identity embedding (face geometry, skin tone, hair texture, clothing silhouette). You are no longer asking the diffusion model to “invent a random Black woman.” You are telling it “use this exact Black woman.”
+### Step 1. Split video into fixed intervals
+Split the full video into fixed time intervals (e.g., 5-second segments).
+**Output:** video intervals with extracted frames (first and last frame of each interval)
 
-### Step 1. Shot segmentation
-Split the full video into coherent segments (“shots” or “clips”).<br>
-**Output:** clip_1.mp4, clip_2.mp4, …
+### Step 2. Remove text from extracted frames
+Remove text overlays from all extracted frames in video intervals for better performance in subsequent steps.
+**Output:** cleaned frames without text overlays
 
-### Step 2. Extract conditioning frames per clip
-For each clip, extract the first frame F_start and the last frame F_end.<br>
-**Output:** F_start_1.jpg, F_end_1.jpg
+### Step 3. Detect and describe people
+Analyze cleaned frames to detect and describe people present in the video (appearance, clothing, position).
+**Output:** original_person_registry (descriptions of people in the original video)
 
-### Step 3. Edit demographic attributes on those frames
-Send F_start and F_end to a Gemini Flash 2.5 model. When we do this we must edit F_start (first frame of the clip), we do not just prompt “make them Black.”
+### Step 4. Generate reference images
+Generate reference images of new people based on the transformation theme (e.g., "Black people", "Asian people").
+Create a "character sheet" for the target demographic with explicit constraints to maintain consistent identity across all frames.
+**Output:** new_person_registry with reference images for each person
 
-Our prompt:
-“Replace the person with THIS SAME WOMAN from the reference set. Keep pose, body orientation, arm position, lighting, scene layout, and all background elements identical. Do not change camera angle. Do not alter any foreground text.”
-* We pass the canonical identity images as reference conditioning.
-* The background, props, and framing must remain structurally aligned with the source.
+### Step 5. Edit frames with reference images
+Edit the cleaned frames by replacing people with the reference images while maintaining pose, body orientation, lighting, scene layout, and background elements.
+**Output:** edited frames with demographically transformed subjects
 
-Result:
-We get F_start_edited and F_end_edited with the same synthetic actor, not two different actors.
+### Step 6. Generate video intervals
+Send edited first and last frames of each interval to Veo3.1 model to generate video clips with consistent people across time.
+**Output:** generated video intervals with changed demographic attributes
 
-**Output:**
-* F_start_edited: first frame with demographically transformed subjects
-* F_end_edited: last frame with the same transformed subjects
+### Step 7. Reassemble video
+Concatenate all regenerated video intervals in the original order and duration to reconstruct the full edited video timeline.
+**Output:** reassembled_video.mp4
 
-### Step 4. Video generation from step 3. edited video clips
-Send F_start_edited and F_end_edited to Veo3.1 model as first_frame and last_frame arguments.
-**Output:** clip_1_edited has consistent people across time, with changed demographic attributes, and approximately the same motion and composition as the original.
-
-### Step 5. Reassemble
-Concatenate all regenerated clip_i in the original order and duration to reconstruct the full edited video timeline.
+### Step 8. Add text layer
+Overlay the extracted text layer from Step 0 back onto the reassembled video to restore the original text overlay.
+**Output:** final_video.mp4 (complete localized video with original text preserved)
