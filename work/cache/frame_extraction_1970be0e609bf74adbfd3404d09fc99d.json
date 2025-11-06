@@ -1,0 +1,22 @@
+[
+  {
+    "index": 0,
+    "start_frame_path": "work/extracted_frames/interval_000_start.jpg",
+    "end_frame_path": "work/extracted_frames/interval_000_end.jpg",
+    "start_time": 0.0,
+    "end_time": 8.0,
+    "duration": 8.0,
+    "fps": 25.0,
+    "audio_path": "work/extracted_audios/interval_000_audio.wav"
+  },
+  {
+    "index": 1,
+    "start_frame_path": "work/extracted_frames/interval_001_start.jpg",
+    "end_frame_path": "work/extracted_frames/interval_001_end.jpg",
+    "start_time": 8.0,
+    "end_time": 16.0,
+    "duration": 8.0,
+    "fps": 25.0,
+    "audio_path": "work/extracted_audios/interval_001_audio.wav"
+  }
+]

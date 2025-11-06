@@ -1,0 +1,18 @@
+[
+  {
+    "person_id": "person_1",
+    "gender": "female",
+    "age": "young_adult",
+    "skin": "brown",
+    "hair": "curly, black, shoulder length",
+    "clothing": "red blouse, black slacks"
+  },
+  {
+    "person_id": "person_2",
+    "gender": "male",
+    "age": "young_adult",
+    "skin": "deep",
+    "hair": "short, curly, black",
+    "clothing": "navy blue t-shirt, khaki pants"
+  }
+]

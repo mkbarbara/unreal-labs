@@ -1,6 +1,5 @@
 .venv
 .env
-work/
 output/
 .idea
 __pycache__
