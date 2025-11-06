@@ -42,7 +42,7 @@ async def reassemble_video(
             '-i', str(concat_file),
             '-c', 'copy',  # Copy streams without re-encoding for speed
             '-y',  # Overwrite output file
-            output_path
+            str(output_path),
         ]
 
         logger.info(f"Running ffmpeg: {' '.join(cmd)}")
