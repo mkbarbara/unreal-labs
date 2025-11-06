@@ -5,25 +5,20 @@ from typing import List
 import subprocess
 
 from utils.logger import setup_logger
-from utils.config import Config
 
 logger = setup_logger(__name__)
 
 
 async def reassemble_video(
     generated_intervals: List[str],
-    output_path: str,
-) -> str:
+    output_path: Path,
+) -> Path:
     """
     Concatenate all generated intervals into the final video
 
     Args:
         generated_intervals: List of paths to generated intervals from Step. 6 (in order)
-        output_path: Path for final output video
-        config: Pipeline configuration
-
-    Returns:
-        Path to final reassembled video
+        output_path: Path for the reassembled video
     """
     logger.info(f"Reassembling {len(generated_intervals)} intervals into final video")
 

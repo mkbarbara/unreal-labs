@@ -9,6 +9,7 @@ from steps.frame_editing import edit_frames
 from steps.video_generation import generate_video_intervals
 from steps.reassembly import reassemble_video
 from steps.extract_text_layer import extract_text_layer
+from steps.add_text_layer import add_text_layer
 from utils.config import Config
 from utils.cache_manager import CacheManager
 from utils.logger import setup_logger
@@ -29,8 +30,7 @@ class VideoLocalizationPipeline:
         self,
         input_video_path: str,
         transformation_theme: str,
-        output_path: str
-    ) -> str:
+    ) -> Path:
         """
         Run the complete video localization pipeline
 
@@ -111,13 +111,22 @@ class VideoLocalizationPipeline:
             )
             logger.info(f"Generated {len(generated_intervals)} video intervals")
 
-            # Step 7: Reassemble the final video
-            logger.info("Step 7: Reassembling final video")
-            final_video = await reassemble_video(
+            # Step 7: Reassemble the video
+            logger.info("Step 7: Reassembling video")
+            reassembled_video = await reassemble_video(
                 generated_intervals,
-                output_path,
+                self.work_dir / "reassembled_video.mp4",
             )
-            logger.info(f"Final video created: {final_video}")
+            logger.info(f"Video reassembled: {reassembled_video}")
+
+            # Step 8: Add the extracted text layer to the reassembled video
+            logger.info("Step 8: Adding extracted text layer to the reassembled video")
+            final_video = add_text_layer(
+                video_path=reassembled_video,
+                text_layer_path=self.work_dir / "extracted_text_layer" / "text_rgba.png",
+                output_path=self.work_dir / "final_video.mp4",
+            )
+            logger.info(f"Final video with text layer: {final_video}")
 
             return final_video
 
@@ -138,7 +147,6 @@ async def main():
     result = await pipeline.run(
         input_video_path="assets/video.mp4",
         transformation_theme=transformation_theme,
-        output_path="output/localized_video.mp4"
     )
 
     print(f"Video localization complete: {result}")
