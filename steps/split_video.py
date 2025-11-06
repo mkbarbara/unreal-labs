@@ -23,6 +23,7 @@ def _save_frame(cap, frame_num, path):
 async def split_video_into_intervals(
     input_video_path: str,
     work_dir: Path,
+    audio_dir: Path,
     interval: int,
     cache_manager: Optional[CacheManager] = None,
 ) -> List[VideoInterval]:
@@ -33,6 +34,7 @@ async def split_video_into_intervals(
     Args:
         input_video_path: Path to source video
         work_dir: Working directory for frame outputs
+        audio_dir: Directory for audio outputs
         interval: Fixed duration in seconds for each interval
         cache_manager: Optional cache manager for caching results
 
@@ -42,6 +44,7 @@ async def split_video_into_intervals(
     logger.info(f"Extracting frames at {interval}s intervals from {input_video_path}")
 
     work_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
 
     # Check cache first
     if cache_manager:
@@ -102,8 +105,13 @@ async def split_video_into_intervals(
         duration_interval = end_time - start_time
 
         # Extract audio for this interval
-        audio_path = work_dir / f"interval_{interval_index:03d}_audio.wav"
-        extract_audio(input_video_path, str(audio_path))
+        audio_path = audio_dir / f"interval_{interval_index:03d}_audio.wav"
+        extract_audio(
+            input_video_path,
+            str(audio_path),
+            start_time=start_time,
+            duration=duration_interval
+        )
 
         frame_pairs.append(
             VideoInterval(

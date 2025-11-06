@@ -37,7 +37,6 @@ class VideoLocalizationPipeline:
         Args:
             input_video_path: Path to source video
             transformation_theme: Overall transformation theme (e.g., "Black people", "Asian people", "Elderly people")
-            output_path: Path for final output video
 
         Returns:
             Path to the generated video
@@ -58,6 +57,7 @@ class VideoLocalizationPipeline:
             video_intervals = await split_video_into_intervals(
                 input_video_path,
                 work_dir=self.work_dir / "extracted_frames",
+                audio_dir=self.work_dir / "extracted_audios",
                 interval=self.config.frame_interval,
                 cache_manager=self.cache_manager,
             )

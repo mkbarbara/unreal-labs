@@ -8,7 +8,7 @@ from utils.logger import setup_logger
 from utils.config import Config
 from utils.falai_worker import FalAIWorker
 from utils.download_file import download_file
-from utils.audio_utils import merge_video_audio, adjust_audio_duration
+from utils.audio_utils import merge_video_audio
 
 logger = setup_logger(__name__)
 
@@ -121,18 +121,10 @@ async def generate_video_intervals(
             if has_audio:
                 logger.info(f"Merging interval {interval_index} with original audio")
 
-                # Adjust audio duration to match the generated video duration
-                adjusted_audio_path = work_dir / f"interval_{interval_index:03d}_adjusted_audio.aac"
-                adjusted_audio = adjust_audio_duration(
-                    str(video_interval.audio_path),
-                    video_interval.duration,
-                    str(adjusted_audio_path)
-                )
-
                 # Merge video with adjusted audio
                 final_path = merge_video_audio(
                     str(generated_path),
-                    adjusted_audio,
+                    str(video_interval.audio_path),
                     str(final_output_path)
                 )
 
