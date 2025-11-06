@@ -6,7 +6,7 @@ from steps.text_removal import remove_text_from_intervals
 from steps.person_detection import detect_and_describe_people
 from steps.reference_generation import generate_reference_images
 from steps.frame_editing import edit_frames
-from steps.video_generation import generate_video_clips
+from steps.video_generation import generate_video_intervals
 from steps.reassembly import reassemble_video
 from utils.config import Config
 from utils.cache_manager import CacheManager
@@ -95,20 +95,19 @@ class VideoLocalizationPipeline:
             logger.info(f"Edited {len(edited_intervals)} intervals")
 
             # Step 6: Generate video clips
-            logger.info("Step 6: Generating video clips with Veo3.1")
-            generated_clips = await generate_video_clips(
+            logger.info("Step 6: Generating new video intervals with Veo3.1")
+            generated_intervals = await generate_video_intervals(
                 edited_intervals,
                 work_dir=self.work_dir / "videos",
                 config=self.config
             )
-            logger.info(f"Generated {len(generated_clips)} video clips")
+            logger.info(f"Generated {len(generated_intervals)} video intervals")
 
             # Step 7: Reassemble the final video
             logger.info("Step 7: Reassembling final video")
             final_video = await reassemble_video(
-                generated_clips,
+                generated_intervals,
                 output_path,
-                config=self.config
             )
             logger.info(f"Final video created: {final_video}")
 

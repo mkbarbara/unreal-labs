@@ -3,7 +3,7 @@
 import json
 import hashlib
 from pathlib import Path
-from typing import Any, Optional, List
+from typing import Any, Optional
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -17,11 +17,8 @@ class CacheManager:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def _generate_cache_key(step_name: str, video_path: str, **params) -> str:
+    def _generate_cache_key(step_name: str, video_path: str) -> str:
         """Generate a unique cache key based on step name, video path, and parameters"""
-        # Create a string representation of all parameters
-        param_str = json.dumps(params, sort_keys=True)
-
         # Get video file hash (using modification time and size for efficiency)
         video_file = Path(video_path)
         if video_file.exists():
@@ -30,21 +27,21 @@ class CacheManager:
             video_hash = "unknown"
 
         # Combine all components
-        key_components = f"{step_name}_{video_path}_{video_hash}_{param_str}"
+        key_components = f"{step_name}_{video_path}_{video_hash}"
 
         # Generate MD5 hash for a clean filename
         cache_key = hashlib.md5(key_components.encode()).hexdigest()
 
         return cache_key
 
-    def get_cache_path(self, step_name: str, video_path: str, **params) -> Path:
-        """Get the cache file path for a specific step and parameters"""
-        cache_key = self._generate_cache_key(step_name, video_path, **params)
+    def get_cache_path(self, step_name: str, video_path: str) -> Path:
+        """Get the cache file path for a specific step"""
+        cache_key = self._generate_cache_key(step_name, video_path)
         return self.cache_dir / f"{step_name}_{cache_key}.json"
 
-    def load(self, step_name: str, video_path: str, **params) -> Optional[Any]:
+    def load(self, step_name: str, video_path: str) -> Optional[Any]:
         """Load cached results if they exist"""
-        cache_path = self.get_cache_path(step_name, video_path, **params)
+        cache_path = self.get_cache_path(step_name, video_path)
 
         if not cache_path.exists():
             logger.info(f"No cache found for {step_name}")
@@ -70,9 +67,9 @@ class CacheManager:
             logger.warning(f"Failed to load cache for {step_name}: {str(e)}")
             return None
 
-    def save(self, step_name: str, video_path: str, data: Any, **params):
+    def save(self, step_name: str, video_path: str, data: Any):
         """Save results to cache"""
-        cache_path = self.get_cache_path(step_name, video_path, **params)
+        cache_path = self.get_cache_path(step_name, video_path)
 
         try:
             with open(cache_path, 'w') as f:

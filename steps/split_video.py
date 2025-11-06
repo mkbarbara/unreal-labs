@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from utils.logger import setup_logger
 from utils.cache_manager import CacheManager
+from utils.audio_utils import extract_audio
 from schemas import VideoInterval
 
 logger = setup_logger(__name__)
@@ -44,7 +45,7 @@ async def split_video_into_intervals(
 
     # Check cache first
     if cache_manager:
-        cached_data = cache_manager.load("frame_extraction", input_video_path, interval=interval)
+        cached_data = cache_manager.load("frame_extraction", input_video_path)
         if cached_data:
             logger.info("Using cached frame extraction results")
             return [VideoInterval(**item) for item in cached_data]
@@ -100,15 +101,22 @@ async def split_video_into_intervals(
         # Calculate actual duration
         duration_interval = end_time - start_time
 
-        frame_pairs.append(VideoInterval(
-            index=interval_index,
-            start_frame_path=start_frame_path,
-            end_frame_path=end_frame_path,
-            start_time=start_time,
-            end_time=end_time,
-            duration=duration_interval,
-            fps=fps,
-        ))
+        # Extract audio for this interval
+        audio_path = work_dir / f"interval_{interval_index:03d}_audio.wav"
+        extract_audio(input_video_path, str(audio_path))
+
+        frame_pairs.append(
+            VideoInterval(
+                index=interval_index,
+                start_frame_path=start_frame_path,
+                end_frame_path=end_frame_path,
+                start_time=start_time,
+                end_time=end_time,
+                duration=duration_interval,
+                fps=fps,
+                audio_path=str(audio_path),
+            )
+        )
 
         logger.info(
             f"Extracted interval {interval_index}: "
@@ -124,6 +132,6 @@ async def split_video_into_intervals(
     # Save to cache
     if cache_manager:
         cache_data = [frame_data.model_dump(mode='json') for frame_data in frame_pairs]
-        cache_manager.save("frame_extraction", input_video_path, cache_data, interval=interval)
+        cache_manager.save("frame_extraction", input_video_path, cache_data)
 
     return frame_pairs

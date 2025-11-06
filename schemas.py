@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from pathlib import Path
+from typing import Optional
 
 
 class VideoInterval(BaseModel):
@@ -10,6 +11,7 @@ class VideoInterval(BaseModel):
     end_time: float
     duration: float
     fps: float
+    audio_path: Optional[str] = None
 
 
 class Person(BaseModel):

@@ -1,7 +1,7 @@
-"""Step 6: Generate video clips using Veo3.1"""
+"""Step 6: Generate new video clips using Veo3.1"""
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from schemas import VideoInterval
 from utils.logger import setup_logger
@@ -13,26 +13,24 @@ from utils.audio_utils import merge_video_audio, adjust_audio_duration
 logger = setup_logger(__name__)
 
 
-async def generate_single_video(
+async def generate_single_interval(
     start_frame_path: Path,
     end_frame_path: Path,
     duration: float,
-    output_path: Path,
+    output_path: str,
     prompt: str,
     config: Config,
-    # audio_path: Optional[str] = None
 ) -> str:
     """
-    Generate a single video clip using Veo3.1
+    Generate a single video interval using Veo3.1
 
     Args:
         start_frame_path: Path to edited start frame
         end_frame_path: Path to edited end frame
-        duration: Clip duration in seconds
+        duration: Interval duration in seconds
         output_path: Where to save generated video
         prompt: Generation instructions
         config: Pipeline configuration
-        # audio_path: Optional path to original audio to merge with generated video
 
     Returns:
         Path to generated video
@@ -57,7 +55,7 @@ async def generate_single_video(
                 "duration": f"{round(duration)}s",
                 "aspect_ratio": "9:16",
                 "resolution": "720p",
-                "generate_audio": False,
+                "generate_audio": False,    # we will use audio from the original video
             }
         )
 
@@ -66,43 +64,18 @@ async def generate_single_video(
         download_file_path = await download_file(video_url, str(output_path))
         return download_file_path
 
-        # # If audio path provided, merge with original audio
-        # if audio_path and Path(audio_path).exists():
-        #     # Download to temporary path first
-        #     temp_video_path = output_path.replace(".mp4", "_no_audio.mp4")
-        #     await download_file(video_url, temp_video_path)
-        #
-        #     # Adjust audio duration to match generated video duration
-        #     temp_audio_path = output_path.replace(".mp4", "_adjusted_audio.aac")
-        #     adjusted_audio = adjust_audio_duration(audio_path, duration, temp_audio_path)
-        #
-        #     # Merge video with audio
-        #     final_path = merge_video_audio(temp_video_path, adjusted_audio, output_path)
-        #
-        #     # Clean up temporary files
-        #     Path(temp_video_path).unlink(missing_ok=True)
-        #     Path(temp_audio_path).unlink(missing_ok=True)
-        #
-        #     logger.info(f"Saved generated video with original audio: {final_path}")
-        #     return final_path
-        # else:
-        #     # No audio to merge, just download video
-        #     download_file_path = await download_file(video_url, output_path)
-        #     logger.info(f"Saved generated video (no audio): {download_file_path}")
-        #     return download_file_path
-
     except Exception as e:
         logger.error(f"Video generation failed: {str(e)}")
         raise
 
 
-async def generate_video_clips(
+async def generate_video_intervals(
     edited_video_intervals: List[VideoInterval],
     work_dir: Path,
     config: Config
 ) -> List[str]:
     """
-    Generate video clips for all edited frame pairs
+    Generate video intervals for all edited frame pairs
 
     Args:
         edited_video_intervals: Edited video intervals
@@ -110,38 +83,74 @@ async def generate_video_clips(
         config: Pipeline configuration
 
     Returns:
-        List of paths to generated video clips
+        List of paths to generated video intervals
     """
     work_dir.mkdir(parents=True, exist_ok=True)
 
     # Load generation prompt
     prompt = config.get_prompt("video_generation")
 
-    generated_clips = []
+    generated_intervals = []
 
     for video_interval in edited_video_intervals:
         interval_index = video_interval.index
         logger.info(f"Generating video for interval {interval_index}")
 
         try:
-            output_path = work_dir / f"interval_{interval_index:03d}_generated.mp4"
+            # Check if we need to merge audio later
+            has_audio = video_interval.audio_path and Path(video_interval.audio_path).exists()
 
-            generated_path = await generate_single_video(
+            # If audio exists, generate to the temp path first
+            if has_audio:
+                temp_output_path = work_dir / f"interval_{interval_index:03d}_generated_no_audio.mp4"
+                final_output_path = work_dir / f"interval_{interval_index:03d}_generated.mp4"
+            else:
+                final_output_path = work_dir / f"interval_{interval_index:03d}_generated.mp4"
+                temp_output_path = final_output_path
+
+            generated_path = await generate_single_interval(
                 video_interval.start_frame_path,
                 video_interval.end_frame_path,
                 video_interval.duration,
-                output_path,
+                str(temp_output_path),
                 prompt,
                 config,
-                # audio_path=video_interval.get("audio_path")
             )
 
-            generated_clips.append(generated_path)
-            logger.info(f"Generated clip {clip_index}")
+            # Merge with original audio if available
+            if has_audio:
+                logger.info(f"Merging interval {interval_index} with original audio")
+
+                # Adjust audio duration to match the generated video duration
+                adjusted_audio_path = work_dir / f"interval_{interval_index:03d}_adjusted_audio.aac"
+                adjusted_audio = adjust_audio_duration(
+                    str(video_interval.audio_path),
+                    video_interval.duration,
+                    str(adjusted_audio_path)
+                )
+
+                # Merge video with adjusted audio
+                final_path = merge_video_audio(
+                    str(generated_path),
+                    adjusted_audio,
+                    str(final_output_path)
+                )
+
+                # Clean up temporary files
+                Path(temp_output_path).unlink(missing_ok=True)
+                Path(adjusted_audio_path).unlink(missing_ok=True)
+
+                generated_intervals.append(final_path)
+            else:
+                logger.info(f"No audio available for interval {interval_index}")
+                generated_intervals.append(str(final_output_path))
+
+            generated_intervals.append(generated_path)
+            logger.info(f"Generated interval {interval_index}")
 
         except Exception as e:
-            logger.error(f"Failed to generate video for clip {clip_index}: {str(e)}")
+            logger.error(f"Failed to generate video for interval {interval_index}: {str(e)}")
             raise
 
-    logger.info(f"Generated {len(generated_clips)} video clips")
-    return generated_clips
+    logger.info(f"Generated {len(generated_intervals)} video intervals")
+    return generated_intervals

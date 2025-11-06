@@ -246,8 +246,6 @@ class OpenAIWorker:
             )
 
             generated_prompt = response.choices[0].message.content
-            logger.info(f"Generated transformation prompt: {generated_prompt[:100]}...")
-
             return generated_prompt
 
         except Exception as e:

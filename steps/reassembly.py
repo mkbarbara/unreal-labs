@@ -1,4 +1,4 @@
-"""Step 7: Reassemble video clips into final output"""
+"""Step 7: Reassemble video intervals into final output"""
 
 from pathlib import Path
 from typing import List
@@ -11,22 +11,21 @@ logger = setup_logger(__name__)
 
 
 async def reassemble_video(
-    clip_paths: List[str],
+    generated_intervals: List[str],
     output_path: str,
-    config: Config
 ) -> str:
     """
-    Concatenate all clips into final video
+    Concatenate all generated intervals into the final video
 
     Args:
-        clip_paths: List of paths to generated clips (in order)
+        generated_intervals: List of paths to generated intervals from Step. 6 (in order)
         output_path: Path for final output video
         config: Pipeline configuration
 
     Returns:
         Path to final reassembled video
     """
-    logger.info(f"Reassembling {len(clip_paths)} clips into final video")
+    logger.info(f"Reassembling {len(generated_intervals)} intervals into final video")
 
     try:
         # Create a temporary file list for ffmpeg concat
@@ -36,9 +35,9 @@ async def reassemble_video(
         concat_file = output_dir / "concat_list.txt"
 
         with open(concat_file, 'w') as f:
-            for clip_path in clip_paths:
+            for video_interval in generated_intervals:
                 # ffmpeg concat demuxer format
-                f.write(f"file '{Path(clip_path).absolute()}'\n")
+                f.write(f"file '{Path(video_interval).absolute()}'\n")
 
         # Use ffmpeg to concatenate videos
         cmd = [
@@ -53,7 +52,7 @@ async def reassemble_video(
 
         logger.info(f"Running ffmpeg: {' '.join(cmd)}")
 
-        result = subprocess.run(
+        subprocess.run(
             cmd,
             capture_output=True,
             text=True,

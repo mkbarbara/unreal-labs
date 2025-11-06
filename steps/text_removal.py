@@ -39,8 +39,7 @@ async def remove_text_from_intervals(
 
     # Check cache first
     if cache_manager and input_video_path:
-        cached_data = cache_manager.load("text_removal", input_video_path,
-                                         model=config.img2img_model)
+        cached_data = cache_manager.load("text_removal", input_video_path)
         if cached_data:
             logger.info("Using cached text removal results")
             return [VideoInterval(**item) for item in cached_data]
@@ -79,6 +78,7 @@ async def remove_text_from_intervals(
             end_time=video_interval.end_time,
             duration=video_interval.duration,
             fps=video_interval.fps,
+            audio_path=video_interval.audio_path,
         )
         cleaned_frame_pairs.append(cleaned_data)
 
@@ -89,8 +89,7 @@ async def remove_text_from_intervals(
     # Save to cache
     if cache_manager and input_video_path:
         cache_data = [frame_data.model_dump(mode='json') for frame_data in cleaned_frame_pairs]
-        cache_manager.save("text_removal", input_video_path, cache_data,
-                          model=config.img2img_model)
+        cache_manager.save("text_removal", input_video_path, cache_data)
 
     return cleaned_frame_pairs
 

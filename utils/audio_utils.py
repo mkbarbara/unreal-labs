@@ -1,24 +1,19 @@
 """Utilities for audio extraction and manipulation"""
 
 import subprocess
-from pathlib import Path
-from typing import Optional
 
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
-def extract_audio(video_path: str, audio_output_path: str) -> Optional[str]:
+def extract_audio(video_path: str, audio_output_path: str):
     """
-    Extract audio from video file
+    Extract audio from the video file
 
     Args:
         video_path: Path to video file
         audio_output_path: Path to save extracted audio
-
-    Returns:
-        Path to extracted audio file or None if no audio track exists
     """
     try:
         # Check if video has audio track
@@ -41,7 +36,7 @@ def extract_audio(video_path: str, audio_output_path: str) -> Optional[str]:
         # If no audio stream found
         if probe_result.returncode != 0 or not probe_result.stdout.strip():
             logger.warning(f"No audio track found in {video_path}")
-            return None
+            return
 
         # Extract audio
         cmd = [
@@ -62,14 +57,11 @@ def extract_audio(video_path: str, audio_output_path: str) -> Optional[str]:
         )
 
         logger.debug(f"Extracted audio: {audio_output_path}")
-        return audio_output_path
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to extract audio: {e.stderr}")
-        return None
     except Exception as e:
         logger.error(f"Audio extraction failed: {str(e)}")
-        return None
 
 
 def merge_video_audio(video_path: str, audio_path: str, output_path: str) -> str:

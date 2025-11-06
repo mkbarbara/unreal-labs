@@ -8,6 +8,7 @@ from utils.config import Config
 from utils.falai_worker import FalAIWorker
 from utils.openai_worker import OpenAIWorker
 from utils.download_file import download_file
+from utils.cache_manager import CacheManager
 from schemas import VideoInterval, Person
 
 logger = setup_logger(__name__)
@@ -100,7 +101,9 @@ async def edit_frames(
     cleaned_video_intervals: List[VideoInterval],
     new_person_registry: List[Person],
     work_dir: Path,
-    config: Config
+    config: Config,
+    input_video_path: Optional[str] = None,
+    cache_manager: Optional[CacheManager] = None,
 ) -> List[VideoInterval]:
     """
     Edit demographic attributes on all cleaned frames by transforming original people to new people
@@ -110,11 +113,20 @@ async def edit_frames(
         new_person_registry: New people registry based on transformation theme
         work_dir: Working directory for outputs
         config: Pipeline configuration
+        input_video_path: Optional path to input video for cache key generation
+        cache_manager: Optional cache manager for caching results
 
     Returns:
         List of edited VideoInterval objects
     """
     work_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check cache first
+    if cache_manager and input_video_path:
+        cached_data = cache_manager.load("edit_frames", input_video_path)
+        if cached_data:
+            logger.info("Using cached text removal results")
+            return [VideoInterval(**item) for item in cached_data]
 
     # Get OpenAI client for dynamic prompt generation
     openai_worker = OpenAIWorker.get_instance()
@@ -193,7 +205,8 @@ async def edit_frames(
                 start_time=video_interval.start_time,
                 end_time=video_interval.end_time,
                 duration=video_interval.duration,
-                fps=video_interval.fps
+                fps=video_interval.fps,
+                audio_path=video_interval.audio_path,
             ))
 
             logger.info(f"Edited frames for interval {interval_index}")
@@ -201,6 +214,11 @@ async def edit_frames(
         except Exception as e:
             logger.error(f"Failed to edit frames for interval {interval_index}: {str(e)}")
             continue
+
+    # Save to cache
+    if cache_manager and input_video_path:
+        cache_data = [frame_data.model_dump(mode='json') for frame_data in edited_intervals]
+        cache_manager.save("edit_frames", input_video_path, cache_data)
 
     logger.info(f"Edited frames for {len(edited_intervals)} intervals")
     return edited_intervals
@@ -246,6 +264,7 @@ async def generate_transformation_prompt_with_mapping(
         new_people_in_frame=new_people_in_frame,
         config=config,
     )
+    logger.info(f"Transformation prompt: {transformation_prompt}")
 
     return transformation_prompt
 
