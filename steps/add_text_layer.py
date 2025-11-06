@@ -36,7 +36,7 @@ def add_text_layer(
         "-i", str(text_layer_path),
         "-filter_complex",
         "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][vid];[vid][ovl]overlay=0:0:shortest=1:format=auto",
-        "-c:v", "libx264",
+        "-c:v", "h264_videotoolbox",
         "-crf", "18",
         "-pix_fmt", "yuv420p",
         str(output_path)
