@@ -130,7 +130,6 @@ async def generate_video_intervals(
 
                 # Clean up temporary files
                 Path(temp_output_path).unlink(missing_ok=True)
-                Path(adjusted_audio_path).unlink(missing_ok=True)
 
                 generated_intervals.append(final_path)
             else:
